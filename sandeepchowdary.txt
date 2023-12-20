@@ -1,0 +1,301 @@
+Solutions:
+=======================================================================================
+
+Q1) kubectl run pod1 --image nginx
+
+Q2) kubectl create deploy mydeploy --image nginx --replicas=4 --dry-run=client -o yaml >demo.yaml
+
+demo.yaml
+==========
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: mydeploy
+  name: mydeploy
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: mydeploy
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: mydeploy
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        resources: {}
+status: {}  
+
+
+                   
+		
+Q3)
+
+service yaml:
+===========================
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  type: NodePort
+  selector:
+    app: mydeploy
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+
+http://13.235.247.61:31046/
+
+
+
+Q4)
+pod
+====
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dev-pod
+spec:
+  containers:
+  - name: dev-container
+    image: nginx
+    volumeMounts:
+    - name: dev-volume
+      mountPath: /etc/config
+  volumes:
+  - name: dev-volume
+    configMap:
+      name: dev-configmap
+
+ConfigMap
+=========
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dev-configmap
+data:
+  APP_CONFIG: 
+    key1=value1
+    key2=value2
+    key3=value3
+
+
+
+Q5)
+version: '3'
+
+services:
+  # Database
+  db:
+    image: mysql:5.7
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    networks:
+      - wpsite
+  # phpmyadmin
+  phpmyadmin:
+    depends_on:
+      - db
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    ports:
+      - '8080:80'
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: password 
+    networks:
+      - wpsite
+  # Wordpress
+  wordpress:
+    depends_on:
+      - db
+    image: wordpress:latest
+    ports:
+      - '8000:80'
+    restart: always
+    volumes: ['./:/var/www/html']
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    networks:
+      - wpsite
+networks:
+  wpsite:
+volumes:
+  db_data:
+
+
+http://13.235.247.61:8000/
+username:sandeep
+passwd: Starstorm@111
+
+
+
+
+Q6)
+
+app.js
+===========
+
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+  res.send('Hello, Docker!');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+
+package.json
+=================
+{
+  "name": "docker-node-app",
+  "version": "1.0.0",
+  "description": "A simple Node.js app for Docker",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
+
+
+Dockerfile
+==========================
+
+FROM node:14
+WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 3000
+CMD ["node", "app.js"]
+
+
+http://13.235.247.61:3000/
+
+
+
+
+Q7)
+
+app.py
+================================================
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route('/')
+def hello_docker():
+    return 'Hello, Docker!'
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
+
+
+
+Dockerfile
+===================================================
+
+FROM python:3.9-slim
+WORKDIR /app
+COPY app.py /app
+RUN pip install --no-cache-dir Flask
+EXPOSE 5000
+CMD ["python", "app.py"]
+
+
+
+http://13.235.247.61:5000/
+
+
+
+
+Q8)
+
+ec2.tf
+=================================================================
+provider "aws" {
+  region = "ap-south-1"  # Specify the AWS region
+  access_key = ""
+  secret_key = ""
+}
+
+resource "aws_security_group" "allow_ssh" {
+  name        = "allow-ssh"
+  description = "Allow incoming SSH traffic"
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Allow traffic from any IP address (adjust as needed)
+  }
+}
+
+resource "aws_instance" "example_instance" {
+  ami           = "ami-0287a05f0ef0e9d9a" # Specify your desired Amazon Machine Image (AMI)
+  instance_type = "t2.micro"               # Specify your desired instance type
+  # Associate the security group with the EC2 instance
+  vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+
+  tags = {
+    Name = "ExampleInstance"
+  }
+}
+# Output the public IP address of the created EC2 instance
+output "instance_public_ip" {
+  value = aws_instance.example_instance.public_ip
+}
+
+
+
+
+
+Q9)
+
+rd.tf
+=================================================
+resource "aws_db_instance" "myrds" {
+  identifier             = "task-db-instance"
+  allocated_storage      = 20
+  storage_type           = "gp2"
+  engine                 = "mysql"
+  engine_version         = "5.7"
+  instance_class         = "db.t2.micro"
+  username               = "sandy"
+  password               = "Sandeep#1"
+  port                   = 3306
+  publicly_accessible    = false
+
+  vpc_security_group_ids = ["sg-0f2ac6b99f8baaf6d"]  # Specify the security group(s) for the RDS instance
+
+  parameter_group_name   = "default.mysql5.7"
+
+  maintenance_window     = "Mon:03:00-Mon:06:00"
+  backup_retention_period = 7
+  backup_window           = "02:00-03:00"
+}
+
+
+
+                      
+                                  
